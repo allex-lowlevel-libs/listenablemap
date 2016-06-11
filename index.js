@@ -46,6 +46,7 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
         runNext(this.cb.bind(null, this.vals, this));
       }
     }
+    listenablemap = null;
   }
   MultiEventWaiter.prototype.destroy = function () {
     if (this.listeners) {
@@ -71,9 +72,13 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
   };
   MultiEventWaiter.prototype.satisfyName = function (name, index, valname, val) {
     if (!this.cb) {
+      name = null;
+      index = null;
       return;
     }
     if (name !== valname) {
+      name = null;
+      index = null;
       return;
     }
     var isval = isDefinedAndNotNull(val);
@@ -82,6 +87,8 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     if (isval && this.satisfied()) {
       this.cb(this.vals, this);
     }
+    name = null;
+    index = null;
   };
 
   function MultiMultiEventWaiter (multis, cb) {
