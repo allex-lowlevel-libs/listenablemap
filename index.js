@@ -1,4 +1,4 @@
-function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDefinedAndNotNull, containerDestroyDeep, arryDestroyAll) {
+function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDefined, isDefinedAndNotNull, containerDestroyDeep, arryDestroyAll) {
   'use strict';
 
   function MapEventHandler(name, cb, onlywhennotnull, singleshot) {
@@ -33,7 +33,8 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     }
   };
 
-  function MultiEventWaiter (listenablemap, names, cb, data, index) {
+  function MultiEventWaiter (listenablemap, names, cb, acceptnulls, data, index) {
+    this.acceptnulls = acceptnulls;
     this.cb = cb;
     this.vals = data || new Array(names.length);
     this.index = index || 0;
@@ -56,6 +57,7 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     this.index = null;
     this.vals = null;
     this.cb = null;
+    this.acceptnulls = null;
   };
   MultiEventWaiter.prototype.buildListener = function (listenablemap, name, index) {
     if (!listenablemap) {
@@ -68,7 +70,7 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     this.listeners.add(name, listenablemap.changed.attach(this.satisfyName.bind(this, name, index)));
   };
   MultiEventWaiter.prototype.satisfied = function () {
-    return this.vals.every(isDefinedAndNotNull);
+    return this.acceptnulls ? this.vals.every(isDefined) : this.vals.every(isDefinedAndNotNull);
   };
   MultiEventWaiter.prototype.satisfyName = function (name, index, valname, val) {
     if (!this.cb) {
@@ -91,6 +93,21 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     index = null;
   };
 
+  function EventSpreader(listenablemap, names, cb, acceptnulls) {
+    this.cb = cb;
+    this.waiter = new MultiEventWaiter(listenablemap, names, this.onMulti.bind(this), acceptnulls);
+  }
+  EventSpreader.prototype.destroy = function () {
+    if (this.waiter) {
+      this.waiter.destroy();
+    }
+    this.waiter = null;
+    this.cb = null;
+  };
+  EventSpreader.prototype.onMulti = function (multis, waiter) {
+    this.cb.apply(null, multis);
+  };
+
   function MultiMultiEventWaiter (multis, cb) {
     this.cb = cb;
     this.data = [];
@@ -109,7 +126,7 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
   MultiMultiEventWaiter.prototype.buildMulti = function (multidesc, index) {
     var nameslen = multidesc.names.length, startindex = this.data.length;
     this.data.push.apply(this.data, new Array(nameslen));
-    this.multis[index] = (new MultiEventWaiter(multidesc.map, multidesc.names, this.trigger.bind(this), this.data, startindex));
+    this.multis[index] = (new MultiEventWaiter(multidesc.map, multidesc.names, this.trigger.bind(this), multidesc.acceptnulls, this.data, startindex));
   };
   function satisfied(m) {
     return m && m.satisfied();
@@ -167,17 +184,22 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     meh.listener = this.changed.attach(meh.trigger.bind(meh));
     return meh;
   };
-  ListenableMap.prototype.listenForMulti = function (names, cb) {
+  ListenableMap.prototype.listenForMulti = function (names, cb, acceptnulls) {
     if (!isArray(names)) {
       throw Error("names must be an Array");
     }
-    return new MultiEventWaiter(this, names, cb);
+    return new MultiEventWaiter(this, names, cb, acceptnulls);
   };
   ListenableMap.multiListenForMulti = function (listendescriptors, cb) { 
-    /*
-    listendescriptors = [{map: map1, names: names1}, {map: map2, names: names2}]
-    */
+    // listendescriptors = 
+    //   [
+    //     {map: map1, names: names1, acceptnulls:true},
+    //     {map: map2, names: names2 /*acceptnulls:false*/}
+    //   ]
     return new MultiMultiEventWaiter(listendescriptors, cb);
+  };
+  ListenableMap.prototype.spread = function (names, cb, acceptnulls) {
+    return new EventSpreader(this, names, cb, acceptnulls);
   };
   
   return ListenableMap;
