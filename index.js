@@ -176,18 +176,23 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     return ret;
   };
   ListenableMap.prototype.listenFor = function (name, cb, onlywhennotnull, singleshot) {
+    //TODO only a String? what about Number?
+    //TODO integrate checks
     if (!name) {
-      throw Error("name must be a string");
+      throw new Error("name must be a string");
     }
+    //TODO more type checking
     var meh = new MapEventHandler(name, cb, onlywhennotnull, singleshot);
     meh.trigger(name, this.get(name));
+    //TODO if not singleshot?
     meh.listener = this.changed.attach(meh.trigger.bind(meh));
     return meh;
   };
   ListenableMap.prototype.listenForMulti = function (names, cb, acceptnulls) {
     if (!isArray(names)) {
-      throw Error("names must be an Array");
+      throw new Error("names must be an Array");
     }
+    //TODO more type checking
     return new MultiEventWaiter(this, names, cb, acceptnulls);
   };
   ListenableMap.multiListenForMulti = function (listendescriptors, cb) { 
