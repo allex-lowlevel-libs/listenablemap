@@ -1,6 +1,6 @@
 {
   "name": "allex_listenablemaplowlevellib",
-  "version": "2.0.0",
+  "version": "2.0.2",
   "description": "JavaScript map that allows listening for a property",
   "main": "index.js",
   "scripts": {

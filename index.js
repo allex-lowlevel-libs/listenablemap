@@ -70,7 +70,15 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     this.listeners.add(name, listenablemap.changed.attach(this.satisfyName.bind(this, name, index)));
   };
   MultiEventWaiter.prototype.satisfied = function () {
-    return this.acceptnulls ? this.vals.every(isDefined) : this.vals.every(isDefinedAndNotNull);
+    var checker = this.acceptnulls ? isDefined : isDefinedAndNotNull;
+    var i;
+    for (i=this.index; i<this.index + this.listeners.count; i++){
+      if (!checker(this.vals[i])){
+        return false;
+      }
+    }
+    return true;
+    //return this.acceptnulls ? this.vals.every(isDefined) : this.vals.every(isDefinedAndNotNull);
   };
   MultiEventWaiter.prototype.satisfyName = function (name, index, valname, val) {
     if (!this.cb) {
@@ -83,7 +91,7 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
       index = null;
       return;
     }
-    var isval = isDefinedAndNotNull(val);
+    var isval = this.acceptnulls ? isDefined(val) : isDefinedAndNotNull(val);
     //console.log(val, '(', name, ') updates index', index);
     this.vals[index] = val;
     if (isval && this.satisfied()) {
