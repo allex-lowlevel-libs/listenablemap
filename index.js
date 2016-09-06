@@ -171,7 +171,7 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
   };
   ListenableMap.prototype.replace = function (name, val) {
     var ret = Map.prototype.replace.call(this, name, val);
-    if (ret && this.changed) {
+    if (isDefined(ret) && this.changed) {
       this.changed.fire(name, val);
     }
     return ret;
