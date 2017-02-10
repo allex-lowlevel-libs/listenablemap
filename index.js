@@ -215,15 +215,22 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
   ListenableMap.prototype.listenFor = function (name, cb, onlywhennotnull, singleshot) {
     //TODO only a String? what about Number?
     //TODO integrate checks
+    var isre = name instanceof RegExp, meh, _meh;
     if (!name) {
       throw new Error("name must be a string");
     }
     //TODO more type checking
-    var meh = (name instanceof RegExp) ?
-      new RegexMapEventHandler(name, cb, onlywhennotnull, singleshot)
-      :
-      new StringMapEventHandler(name, cb, onlywhennotnull, singleshot);
-    meh.trigger(name, this.get(name));
+    if (isre) {
+      meh = new RegexMapEventHandler(name, cb, onlywhennotnull, singleshot);
+      _meh = meh;
+      this.traverse(function (val, name) {
+        _meh.trigger(name, val);
+      });
+      _meh = null;
+    } else {
+      meh = new StringMapEventHandler(name, cb, onlywhennotnull, singleshot);
+      meh.trigger(name, this.get(name));
+    }
     //TODO if not singleshot?
     meh.listener = this.changed.attach(meh.trigger.bind(meh));
     return meh;
