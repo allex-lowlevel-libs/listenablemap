@@ -1,14 +1,14 @@
 function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDefined, isDefinedAndNotNull, containerDestroyDeep, arryDestroyAll) {
   'use strict';
 
-  function MapEventHandler(name, cb, onlywhennotnull, singleshot) {
+  function MapEventHandlerBase(name, cb, onlywhennotnull, singleshot) {
     this.name = name;
     this.cb = cb;
     this.onlywhennotnull = onlywhennotnull;
     this.singleshot = singleshot;
     this.listener = null;
   }
-  MapEventHandler.prototype.destroy = function () {
+  MapEventHandlerBase.prototype.destroy = function () {
     if (this.listener) {
       runNext(this.listener.destroy.bind(this.listener));
     }
@@ -18,18 +18,44 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     this.cb = null;
     this.name = null;
   };
-  MapEventHandler.prototype.trigger = function (name, val) {
+  MapEventHandlerBase.prototype.trigger = function (name, val) {
     if (!this.cb) {
       return;
     }
-    if (this.name === name) {
-      if (!val && this.onlywhennotnull) {
+    if (this.isNameOK(name)) {
+      if (!isDefinedAndNotNull(val) && this.onlywhennotnull) {
         return;
       }
-      this.cb(val);
+      this.emitData(name, val);
       if (this.singleshot) {
         this.destroy();
       }
+    }
+  };
+
+  function StringMapEventHandler(name, cb, onlywhennotnull, singleshot) {
+    MapEventHandlerBase.call(this, name, cb, onlywhennotnull, singleshot);
+  }
+  inherit(StringMapEventHandler, MapEventHandlerBase);
+  StringMapEventHandler.prototype.isNameOK = function (name) {
+    return this.name === name;
+  };
+  StringMapEventHandler.prototype.emitData = function (name, val) {
+    if (this.cb) {
+      this.cb(val);
+    }
+  };
+
+  function RegexMapEventHandler(name, cb, onlywhennotnull, singleshot) {
+    MapEventHandlerBase.call(this, name, cb, onlywhennotnull, singleshot);
+  }
+  inherit(RegexMapEventHandler, MapEventHandlerBase);
+  RegexMapEventHandler.prototype.isNameOK = function (name) {
+    return this.name.test(name);
+  };
+  RegexMapEventHandler.prototype.emitData = function (name, val) {
+    if (this.cb) {
+      this.cb(name, val);
     }
   };
 
@@ -193,7 +219,10 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
       throw new Error("name must be a string");
     }
     //TODO more type checking
-    var meh = new MapEventHandler(name, cb, onlywhennotnull, singleshot);
+    var meh = (name instanceof RegExp) ?
+      new RegexMapEventHandler(name, cb, onlywhennotnull, singleshot)
+      :
+      new StringMapEventHandler(name, cb, onlywhennotnull, singleshot);
     meh.trigger(name, this.get(name));
     //TODO if not singleshot?
     meh.listener = this.changed.attach(meh.trigger.bind(meh));
