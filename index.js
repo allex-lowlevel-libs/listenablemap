@@ -1,4 +1,4 @@
-function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDefined, isDefinedAndNotNull, containerDestroyDeep, arryDestroyAll) {
+function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDefined, isDefinedAndNotNull, isEqual, containerDestroyDeep, arryDestroyAll) {
   'use strict';
 
   function MapEventHandlerBase(name, cb, onlywhennotnull, singleshot) {
@@ -65,17 +65,19 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     this.vals = data || new Array(names.length);
     this.index = index || 0;
     this.listeners = new Map();
+    this.lastVals = null;
     if (!this.cb) {
       this.destroy();
     } else {
       names.forEach(this.buildListener.bind(this, listenablemap));
       if (this.satisfied()) {
-        runNext(this.cb.bind(null, this.vals, this));
+        runNext(fireCB.bind(this));
       }
     }
     listenablemap = null;
   }
   MultiEventWaiter.prototype.destroy = function () {
+    this.lastVals = null;
     if (this.listeners) {
       runNext(containerDestroyDeep.bind(null,this.listeners));
     }
@@ -124,11 +126,20 @@ function createListenableMap(Map, _EventEmitter, inherit, runNext, isArray, isDe
     //console.log(val, '(', name, ') updates index', index);
     this.vals[index] = val;
     if (isval && this.satisfied()) {
-      this.cb(this.vals, this);
+      fireCB.call(this);
     }
     name = null;
     index = null;
   };
+  //statics on MultiEventWaiter
+  function fireCB () {
+    if (isEqual(this.vals, this.lastVals)) {
+      return;
+    }
+    this.lastVals = this.vals.slice();
+    this.cb(this.vals, this);
+  }
+  //endof statics on MultiEventWaiter
 
   function EventSpreader(listenablemap, names, cb, acceptnulls) {
     this.cb = cb;
